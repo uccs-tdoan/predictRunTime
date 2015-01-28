@@ -1,7 +1,8 @@
 /* performance.java is in companion with ClassifiersCost.java (with Misclassifier Cost) 
  * Tri Doan
+ * Note: weka developer 3.7.2
  * Implement different classifiers in order to get statistical summaries   
- * Date: Sept 25
+ * Date: Jan 28
  * */
 import java.io.BufferedReader;
 import java.io.File;
@@ -90,7 +91,7 @@ public class performances {
  
 	public static void main(String[] args) throws Exception {
 		String outFile = "PerformanceNoCost1.csv";
-		String outPath = "F:\\AlgoSelect";
+		String outPath = "C:\\data\\runtime";
 		
 		
 		// For test purpose only
@@ -100,7 +101,7 @@ public class performances {
 		
 		//String inFile  = "zoo.arff";
 //		String inPath  = "c:\\data\\uci";
-		String inPath  = "F:\\data\\autoweka";
+		String inPath  = "C:\\data\\tmp";
 		List<String> results = getList(inPath);
 		
 		String inFile;
@@ -113,15 +114,18 @@ public class performances {
         
      // Use a set of classifiers
      		Classifier[] models = { 
-     				new J48(), // a decision trees
-     				new DecisionStump(), //one-level decision tree
-     				new RandomForest(),
-     				new PART(), 
-     				new DecisionTable(),//decision table majority classifier
-     				new JRip(),
-     				new OneR(),
-     				new ZeroR(),
      				
+     				new DecisionStump(), //one-level decision tree
+     			//	new MLPClassifier(),
+     				
+     				new MultilayerPerceptron(),
+     			//	new MultilayerPerceptronCS(),
+     				new Logistic(),
+     				new SimpleLogistic(), // linear logistic regression models. 
+     				new SMO(),
+     				
+     				
+                //    new CAAR(),   
      				new IBk(), // instance based classifier used K nearest neighbor
      				new KStar(),  // instance based classifier using entropy based distance 
      				new LWL(), // Locally weighted learning used KNN
@@ -130,16 +134,39 @@ public class performances {
      				
      				new AdaBoostM1(),
      				new Bagging(),
+     			
      				new Stacking(),
      				new LogitBoost(),
+     			//	new MultiBoostAB(),
+     				new Vote(),
+     				
+     				new DecisionTable(),//decision table majority classifier
+     			//	new DNTB(),
+     				new JRip(),
+     				new OneR(),
+     			//	new Ridor(),
+     				new ZeroR(),
+     				new PART(),
+     				
+     				
+     				
      				new RandomCommittee(),
      				
-     				//new Vote(),
+     				new J48(), // a decision trees
+     			//	new BFTree(),
+     			//	new FT(),
+     			//	new LADTree(),
+     				new LMT(),
+     			//	new NBTree(),
+     				new RandomForest(),
+     				new RandomTree(),
+     				new REPTree(),
+     			//	new SimpleCart(),
+     				 
      				
-     				new Logistic(),
-     				new MultilayerPerceptron(),
-     				new SimpleLogistic(), // linear logistic regression models. 
-     				new SMO()//
+     				
+     		
+     				
 //     				new SMOreg(), //SMOreg implements the support vector machine for regression.				
      		};
 
