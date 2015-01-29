@@ -22,9 +22,11 @@ import weka.classifiers.rules.*;
 import weka.classifiers.lazy.*;
 import weka.classifiers.functions.*;
 import weka.classifiers.meta.*;
-//import weka.classifiers.trees.DecisionStump;
-import weka.classifiers.bayes.NaiveBayes;
+//import weka.classifiers.mi.*;
+import weka.classifiers.bayes.*;
 import weka.classifiers.trees.*;
+import libsvm.*;
+
 import weka.core.FastVector;
 import weka.core.Instances;
 
@@ -121,24 +123,28 @@ public class performances {
      				new DecisionStump(), //one-level decision tree
      			//	new MLPClassifier(),
      				
+     				
+     				new LibSVM(),
      				new MultilayerPerceptron(),
-     			//	new MultilayerPerceptronCS(),
+     		//		new MultilayerPerceptronCS(),
      				new Logistic(),
      				new SimpleLogistic(), // linear logistic regression models. 
      				new SMO(),
      				
-     				
-                 //   new CAAR(),   
+     			 //	new EnsembleSelection(),
+                  //  new CAAR(),   
      				new IBk(), // instance based classifier used K nearest neighbor
      				new KStar(),  // instance based classifier using entropy based distance 
      				new LWL(), // Locally weighted learning used KNN
      				
+     				new BayesNet(),
      				new NaiveBayes(),
-     				
+     				new NaiveBayesUpdateable(),
      				new AdaBoostM1(),
      				new Bagging(),
      			
      				new Stacking(),
+     			//	new StackingC(),
      				new LogitBoost(),
      			//	new MultiBoostAB(),
      				new Vote(),
@@ -154,13 +160,13 @@ public class performances {
      				
      				
      				new RandomCommittee(),
-     				
+     		//		new DTNB(),
      				new J48(), // a decision trees
-     			//	new BFTree(),
-     			//	new FT(),
-     			//	new LADTree(),
+     		//		new BFTree(),
+     		//		new FT(),
+     		//		new LADTree(),
      				new LMT(),
-     			//	new NBTree(),
+     		//		new NBTree(),
      				new RandomForest(),
      				new RandomTree(),
      				new REPTree(),
