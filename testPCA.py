@@ -35,19 +35,14 @@ with open('c:\algoselecMeta\testPCA.csv', 'w', newline='') as fp:
     a.write.rows(fp) 
 fp.close()
 
-# read csv file and return data, target    
-# data should be numeric only
 def read_csv(file_path, has_header = True):
     with open(file_path) as f:
         if has_header: f.readline()
         data = []
-        target =[]
         for line in f:
             line = line.strip().split(",")
-            data.append([float(x) for x in line[:-1]])
-            target.append(line[-1])
-    return data, target
-    
+            data.append([float(x) for x in line])
+    return data
 
 def write_csv(file_path, data):
     with open(file_path,"w") as f:
