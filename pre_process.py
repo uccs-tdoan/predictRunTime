@@ -23,9 +23,10 @@ def read_data(file_name,has_header=True):
     target = []
     for line in f:
         line = line.strip().split(",")
-       # sample = [ float(x) if x number else x for x in line[:-1]]
+         # converting numeric value only
+        sample = [ float(x) if x.replace('.','',1).isdigit() else x for x in line[:-1]]
         target.append(line[-1])
-        data.append(line[:-1])
+        data.append(sample)
     return data,target,header
 
 #for i in range(len(df.columns)-1):
@@ -53,6 +54,9 @@ for column in numbers:
    step= step+tmp.shape[1]+1
 
 
-# replace new columns
+# convert to Data Frame
 df = pd.DataFrame(df)
+df.columns= header.strip().split(",")
+# save to file without index column
+df.to_csv(join('../tmp',file),index=False)
 

@@ -12,3 +12,4 @@ to the Classpath.
 
 Usually it's in the "(HOME)\wekafiles\packages\LibSVM" directory.
 
+The compression methods implement with scikit learn (use enthought canopy for convenient packages) 
