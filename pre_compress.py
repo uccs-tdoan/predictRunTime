@@ -11,9 +11,11 @@ import pandas as pd
 from numpy.random import RandomState
 from os import listdir
 from os.path import isfile, join
-from sklearn.decomposition import PCA, KernelPCA, FactorAnalysis, TruncatedSVD, RandomizedPCA, FastICA, MiniBatchSparsePCA, NMF
+from sklearn.decomposition import PCA, KernelPCA, FactorAnalysis, TruncatedSVD, RandomizedPCA, FastICA, NMF
 from sklearn.preprocessing import StandardScaler
 # http://scikit-learn.org/stable/modules/decomposition.html
+
+# no conversion semeion, error memory in letter
 
 def read_csv(file_path, has_header = True):
     """
@@ -54,11 +56,10 @@ for file in csvfiles :
    # scale data 
    
    data_scaler = StandardScaler()
-   target_scaler = StandardScaler()
    data = data_scaler.fit_transform(data)
    #target = target_scaler.fit_transform(target)
    
-  # Implement Probabilistic PCA
+  # 1. Implement Probabilistic PCA
    pca = PCA(n_components=n_attr) 
    pca.fit(data)
    dat = pca.transform(data)
@@ -72,8 +73,8 @@ for file in csvfiles :
    dta.to_csv(join('../PCA','PCA'+`n_attr`+file),index=False)
    runTime.append(['PCA'+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
-   
-  # Implement Factor Analysis
+   print(' 1. Complete Probabilistic PCA') 
+  # 2. Implement Factor Analysis
    fa= FactorAnalysis(n_components=n_attr)
    dat= fa.fit_transform(data)
    dat = pd.DataFrame(dat)
@@ -83,9 +84,9 @@ for file in csvfiles :
  
    runTime.append(['FA'+`n_attr`+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
-     
+   print(' 2. Complete Factor Analysis')  
     
-  # Implement KernelPCA with rbf kernel
+  # 3. Implement KernelPCA with rbf kernel
    start = timeit.default_timer()
    kpca = KernelPCA(n_components=n_attr,kernel="rbf", fit_inverse_transform=True, gamma=0.5)
    dat_kpca = kpca.fit_transform(data)
@@ -97,8 +98,9 @@ for file in csvfiles :
    dat.to_csv(join('../PCA','KPCARBF'+`n_attr`+file),index=False)
    runTime.append(['KPCARBF'+`n_attr`+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
-
-# Implement KernelPCA with linear kernel
+   print(' 3. Complete Kernel PCA with rbf')
+   
+# 4. Implement KernelPCA with linear kernel
    start = timeit.default_timer()
    kpca = KernelPCA(n_components=n_attr,kernel="linear", fit_inverse_transform=True, gamma=0.5)
    dat_kpca = kpca.fit_transform(data)
@@ -111,8 +113,9 @@ for file in csvfiles :
    dat.to_csv(join('../PCA','KPCAlinear'+`n_attr`+file),index=False)
    runTime.append(['KPCAlinear'+`n_attr`+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
+   print(' 5. Complete KernelPCA with linear kernel')
   
- # Implement KernelPCA with sigmoid kernel
+ # 5. Implement KernelPCA with sigmoid kernel
  #   start = timeit.default_timer()
  #  kpca = KernelPCA(n_components=n_attr,kernel="sigmoid", fit_inverse_transform=True, gamma=0.5)
  #  dat_kpca = kpca.fit_transform(data)
@@ -128,7 +131,7 @@ for file in csvfiles :
 
    
          
-#Implement truncatedSVD
+# 6. Implement truncatedSVD
    start = timeit.default_timer()
    tsvd = TruncatedSVD(n_attr)
    tsvd.fit(data)
@@ -141,8 +144,9 @@ for file in csvfiles :
    
    runTime.append(['TSVD'+`n_attr`+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
+   print(' 6. Complete truncatedPCA')
       
- #Implement RandomizedPCA
+ # 7. Implement RandomizedPCA
    start = timeit.default_timer() 
    rpca = RandomizedPCA(n_components=n_attr)
    rpca.fit(data)   
@@ -155,8 +159,9 @@ for file in csvfiles :
 
    runTime.append(['RPCA'+`n_attr`+file,timeit.default_timer() - start ])
    start = timeit.default_timer()
+   print(' 7. Complete Randomized PCA')
    
- # Implement FastICA
+ # 8. Implement FastICA
    start = timeit.default_timer() 
    fpca = FastICA(n_components=n_attr)
    fpca.fit(data)   
@@ -167,7 +172,7 @@ for file in csvfiles :
    dat.to_csv(join('../PCA','FICA'+`n_attr`+file),index=False)
    
    runTime.append(['FICA'+`n_attr`+file,timeit.default_timer() - start ])
- 
+   print('8. Complete FastICA')
    # implement SparsePCA
   
    # implement Nonnegetive Matrix Factorization NMF 
@@ -181,6 +186,6 @@ for file in csvfiles :
    
    #runTime.append(['NMFA'+`n_attr`+file,timeit.default_timer() - start ])
    
-  # csv_writer("../compresstime.csv",runTime)
-    
+   csv_writer("../compresstime.csv",runTime)
+   print (' complete 8 compression methods ',file)  
    
