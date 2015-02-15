@@ -4,6 +4,9 @@
  * Note: weka developer 3.7.2
  * Implement different classifiers in order to get statistical summaries   
  * Date: 2015, Jan 28
+ * Last update: Feb 15, 2015
+ * In last update, i use Stratified k fold cross validation to deal with unbalanced classes
+ * instead of k-fold cross validation
  * */
 import java.io.BufferedReader;
 import java.io.File;
@@ -14,7 +17,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
+import java.util.Random;
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.evaluation.NominalPrediction;
@@ -26,10 +29,10 @@ import weka.classifiers.meta.*;
 import weka.classifiers.bayes.*;
 import weka.classifiers.trees.*;
 import libsvm.*;
-
 import weka.core.FastVector;
 import weka.core.Instances;
 
+import java.lang.management.*;  // Evaluate CPU time with java
  
 public class performances {
 	public static BufferedReader readDataFile(String filename) {
@@ -81,6 +84,8 @@ public class performances {
 		return 100 * correct / predictions.size();
 	}
  
+
+	
 	public static Instances[][] crossValidationSplit(Instances data, int numberOfFolds) {
 		Instances[][] split = new Instances[2][numberOfFolds];
  
@@ -91,20 +96,35 @@ public class performances {
  
 		return split;
 	}
+
+	/** Get CPU time in nanoseconds. */
+	public static long getCpuTime( ) {
+	    ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
+	    return bean.isCurrentThreadCpuTimeSupported( ) ?
+	        bean.getCurrentThreadCpuTime( ) : 0L;
+	}
+	 
+	/** Get user time in nanoseconds. */
+	public static long getUserTime( ) {
+	    ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
+	    return bean.isCurrentThreadCpuTimeSupported( ) ?
+	        bean.getCurrentThreadUserTime( ) : 0L;
+	}
+
+	/** Get system time in nanoseconds. */
+	public static long getSystemTime( ) {
+	    ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
+	    return bean.isCurrentThreadCpuTimeSupported( ) ?
+	      (bean.getCurrentThreadCpuTime( ) - bean.getCurrentThreadUserTime( )) : 0L;
+	}
+
  
 	public static void main(String[] args) throws Exception {
 		String outFile = "PerformanceNoCost1.csv";
 		String outPath = "C:\\data\\runtime";
 		
 		
-		// For test purpose only
-		
-		//List<String> results = new ArrayList<String>() ;
-		//List<String> results = Arrays.asList("zoo.arff","vehicle.arff");
-		
-		//String inFile  = "zoo.arff";
-//		String inPath  = "c:\\data\\uci";
-		String inPath  = "C:\\data\\tmp";
+		String inPath  = "C:\\data\\temp";
 		List<String> results = getList(inPath);
 		
 		String inFile;
@@ -116,7 +136,11 @@ public class performances {
 		// For each training-testing split pair, train and test the classifier
 	    long startTrain,startTest, totalTrain=0,totalTest=0 ;
 		
-        
+	    // Remove comment to allow enter seed, fold from keyboard 
+	    // int seed  = Integer.parseInt(Utils.getOption("s", args));
+	    //int folds = Integer.parseInt(Utils.getOption("x", args));
+	    int seed = 12;   // the seed for randomizing the data
+	    int folds = 10;    // 10 cross-validation
      // Use a set of classifiers
      		Classifier[] models = { 
      				
@@ -175,6 +199,11 @@ public class performances {
      				
      		};
 
+ 		long startSystemTimeNano =  getSystemTime( );
+        long startUserTimeNano   = getUserTime( );
+	
+     		
+     		
 		for (int k=0; k< results.size();k++) {
 			inFile=results.get(k);
 			String inStore = inPath+"\\"+ results.get(k);
@@ -184,20 +213,25 @@ public class performances {
 		
 		//PrintWriter out = new PrintWriter(new FileWriter("c:\\AlgoSelecMeta\\output.csv"));
 		
+		
+		Random rand = new Random(seed);   // create seeded number generator
+		
 		Instances data = new Instances(datafile);
+		data.randomize(rand);         // randomize data with number generator
 		data.setClassIndex(data.numAttributes() - 1);
+	    if (data.classAttribute().isNominal())
+	        data.stratify(folds);
 
+		
 		// Do 10-split cross validation
-		Instances[][] split = crossValidationSplit(data, 10);
- 
-		// Separate split into training and testing arrays
-		Instances[] trainingSplits = split[0];
-		Instances[] testingSplits = split[1];
- 
-		 
+		Instances[][] split = crossValidationSplit(data, folds);
+		
+		// The follow separate split into training and testing arrays in previous version 
+		// Instances[] trainingSplits = split[0];
+		// Instances[] testingSplits = split[1];
         // Print header
 		 
-		out.println("Accuracy,RMSE,Fscore,PRC,AUC,SAR,Dataset,nInstances,nClasses,nAttributes,Algorithm,trainTime,testTime");
+		out.println("Accuracy,RMSE,Fscore,PRC,AUC,SAR,Dataset,nInstances,nClasses,nAttributes,Algorithm,runTime,CPUtime");
 		// Run for each model
 		for (int j = 0; j < models.length; j++) {
  
@@ -208,55 +242,83 @@ public class performances {
             avgAcc=0; avgRMSE=0; avgFscore =0 ;avgPRC=0 ;avgAUC=0 ; avgErr=0 ;avgCost=0;
             totalTrain=0; totalTest=0;
 			// For each training-testing split pair, train and test the classifier
+            long taskUserTimeNano   ;
+            long taskSystemTimeNano ;
            
             int count=0;
-            System.out.printf(" Number of split %d",trainingSplits.length);
-			for (int i = 0; i < trainingSplits.length; i++) {
+            // System.out.printf(" Number of split %d",trainingSplits.length);
+			// for (int i = 0; i < trainingSplits.length; i++) {
+            for (int i = 0; i < folds; i++) {
 				startTrain = System.currentTimeMillis();
-				Evaluation validation = classify(models[j], trainingSplits[i], testingSplits[i]);
-				totalTrain = totalTrain + System.currentTimeMillis()- startTrain;
+				// This belove of code used in previous version where data does not shuffle
+				//Evaluation validation = classify(models[j], trainingSplits[i], testingSplits[i]);  in provisou
+				// the following code is used by the StratifiedRemoveFolds filter
+				Instances train = data.trainCV(folds, i);
+			    Instances test = data.testCV(folds, i);
+			    
+				Evaluation validation = classify(models[j], train, test);
+			    totalTrain = totalTrain + System.currentTimeMillis()- startTrain;
 				startTest  = System.currentTimeMillis() ;
 				predictions.appendElements(validation.predictions());
 				totalTest  = totalTest+ System.currentTimeMillis() - startTest;
-				 avgAcc += validation.pctCorrect();
+				avgAcc += validation.pctCorrect();
 					
-	             avgRMSE   += validation.rootMeanSquaredError();
+	            avgRMSE   += validation.rootMeanSquaredError();
 	           
-	             avgErr    += validation.errorRate(); 
-	             avgCost   += validation.avgCost(); //  total cost of misclassifications (incorrect plus unclassified) over the total number of instances.
+	            avgErr    += validation.errorRate(); 
+	            avgCost   += validation.avgCost(); //  total cost of misclassifications (incorrect plus unclassified) over the total number of instances.
 	                           
-	             avgPRC += validation.weightedAreaUnderPRC();
-	             avgAUC += validation.weightedAreaUnderROC();
-	             avgFscore += validation.weightedFMeasure();
+	            avgPRC += validation.weightedAreaUnderPRC();
+	            avgAUC += validation.weightedAreaUnderROC();
+	            avgFscore += validation.weightedFMeasure();
 	               
-			} // End for loop - running for one model 
+			    /* These following code used inexplorer and experimenter of Weka
+			     * Instances train = randData.trainCV(folds, n, rand);
+			     *  build and evaluate classifier
+      			 *	Classifier clsCopy = Classifier.makeCopy(cls);
+      			 *	clsCopy.buildClassifier(train);
+      			 *	eval.evaluateModel(clsCopy, test);
+      			 * http://stats.stackexchange.com/questions/100631/would-a-sorted-class-harm-a-10-split-cross-validation
+      			 * http://www.programcreek.com/2013/01/a-simple-machine-learning-example-in-java/
+			     * reference: http://weka.wikispaces.com/Generating+cross-validation+folds+%28Java+approach%29  
+			     *  /
+			     */
+	            
+	            
+            } // End for loop - running for one model 
 			
 			
 			
-			System.out.println(" RMSE = "+String.format("%.2f", avgRMSE/trainingSplits.length));
-			System.out.println(" Fscore = "+String.format("%.2f", avgFscore/trainingSplits.length));
-			System.out.println(" avgPRC = "+String.format("%.2f",(float) avgPRC/trainingSplits.length));
-			System.out.println(" avgAUC = "+String.format("%.2f",(float) avgAUC/trainingSplits.length));
+			System.out.println(" RMSE = "+String.format("%.2f", avgRMSE/folds));
+			System.out.println(" Fscore = "+String.format("%.2f", avgFscore/folds));
+			System.out.println(" avgPRC = "+String.format("%.2f",(float) avgPRC/folds));
+			System.out.println(" avgAUC = "+String.format("%.2f",(float) avgAUC/folds));
 			
-			System.out.println(" trainning time = "+String.format("%d",(long) totalTrain));
-			System.out.println(" test time = "+String.format("%d",(long) totalTest));
+			System.out.println(" run time = "+String.format("%d",(long) totalTrain+totalTest));
+			
 			
 			//System.out.println(" ratio of run time over training time = "+String.format("%f",(float)  totalTrainingTime/ duration ));
 			// Calculate overall accuracy of current classifier on all splits
 			//double accuracy = calculateAccuracy(predictions);
-			avgAcc   = avgAcc/trainingSplits.length;
-			avgRMSE   = avgRMSE/trainingSplits.length;
-			avgFscore = avgFscore/trainingSplits.length;
-			avgPRC    = avgPRC/trainingSplits.length;
-			avgAUC    = avgAUC/trainingSplits.length;
+			avgAcc   = avgAcc/folds;
+			avgRMSE   = avgRMSE/folds;
+			avgFscore = avgFscore/folds;
+			avgPRC    = avgPRC/folds;
+			avgAUC    = avgAUC/folds;
 			double avgSAR = (avgAcc+avgAUC+(1-avgRMSE))/3;	
 			
+			
+			taskUserTimeNano    = getUserTime( ) - startUserTimeNano;
+            taskSystemTimeNano  = getSystemTime( ) - startSystemTimeNano;
+            // "User time" is the time spent running your application's own code.
+            // "System time" is the time spent running OS code on behalf of your application (such as for I/O).
+            // "CPU time" = user time + system time. It's the total time spent using a CPU for your application.
 			out.print(String.format("%.2f",avgAcc)+","+String.format("%.2f",avgRMSE)+","+String.format("%.2f",avgFscore)+",");
 			out.print(String.format("%.2f",avgPRC)+","+String.format("%.2f",avgAUC)+",");
 			out.print(String.format("%.2f",avgSAR)+","+ inFile.split("\\.")[0]+","+String.format("%d", data.numInstances())+",");
 			out.print(String.format("%d",data.numClasses())+","+String.format("%d", data.numAttributes()-1)+",");
 		    out.print(models[j].getClass().getSimpleName()+","+String.format("%d",totalTrain)+",");
-		    out.println(String.format("%d",totalTest));
+		    out.println(String.format("%d",taskUserTimeNano+taskSystemTimeNano));
 			
 		    // Print current classifier's name and accuracy in a complicated,
 			
