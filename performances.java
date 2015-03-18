@@ -111,20 +111,28 @@ public class performances {
 	        bean.getCurrentThreadUserTime( ) : 0L;
 	}
 
-	/** Get system time in nanoseconds. */
+	public long totalMem() {
+        return Runtime.getRuntime().totalMemory();
+    }
+	
+	/* ** Get system time in nanoseconds. */
 	public static long getSystemTime( ) {
 	    ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
 	    return bean.isCurrentThreadCpuTimeSupported( ) ?
 	      (bean.getCurrentThreadCpuTime( ) - bean.getCurrentThreadUserTime( )) : 0L;
 	}
 
- 
+	public static long usedMem() {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+	
+	
 	public static void main(String[] args) throws Exception {
-		String outFile = "PerformanceNoCost1.csv";
-		String outPath = "C:\\data\\runtime";
+		String outFile = "PerformanceAddLaptopTest.csv";
+		String outPath = "C:\\smallProject\\predictRunTime\\results";
 		
 		
-		String inPath  = "C:\\data\\temp";
+		String inPath  = "C:\\smallProject\\predictRunTime\\tri1";
 		List<String> results = getList(inPath);
 		
 		String inFile;
@@ -132,6 +140,12 @@ public class performances {
 	 
 		PrintWriter out =new PrintWriter(new FileWriter(outStore,true));
 		
+		Runtime runtime = Runtime.getRuntime();
+		
+		long maxMemory = runtime.maxMemory();
+        long allocatedMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        
 		float avgAcc, avgRMSE,avgFscore ,avgPRC,avgAUC ,avgErr,avgCost;
 		// For each training-testing split pair, train and test the classifier
 	    long startTrain,startTest, totalTrain=0,totalTest=0 ;
@@ -231,7 +245,7 @@ public class performances {
 		// Instances[] testingSplits = split[1];
         // Print header
 		 
-		out.println("Accuracy,RMSE,Fscore,PRC,AUC,SAR,Dataset,nInstances,nClasses,nAttributes,Algorithm,runTime,CPUtime");
+		out.println("Accuracy,RMSE,Fscore,PRC,AUC,SAR,Dataset,nInstances,nClasses,nAttributes,Algorithm,runTime,CPUtime,usedMemory");
 		// Run for each model
 		for (int j = 0; j < models.length; j++) {
  
@@ -295,7 +309,7 @@ public class performances {
 			System.out.println(" avgAUC = "+String.format("%.2f",(float) avgAUC/folds));
 			
 			System.out.println(" run time = "+String.format("%d",(long) totalTrain+totalTest));
-			
+		    System.out.print(" Memory used"+String.format("%d",(long) usedMem()));	
 			
 			//System.out.println(" ratio of run time over training time = "+String.format("%f",(float)  totalTrainingTime/ duration ));
 			// Calculate overall accuracy of current classifier on all splits
@@ -318,8 +332,14 @@ public class performances {
 			out.print(String.format("%.2f",avgSAR)+","+ inFile.split("\\.")[0]+","+String.format("%d", data.numInstances())+",");
 			out.print(String.format("%d",data.numClasses())+","+String.format("%d", data.numAttributes()-1)+",");
 		    out.print(models[j].getClass().getSimpleName()+","+String.format("%d",totalTrain)+",");
-		    out.println(String.format("%d",taskUserTimeNano+taskSystemTimeNano));
-			
+		    out.println(String.format("%d",(taskUserTimeNano+taskSystemTimeNano)/1000000000));
+		    out.println(String.format("%d",usedMem()/1024/1024));
+	/*
+	 *  Alternatively, to compute memory usage in Megabytes
+	 * double currentMemory = ( (double)((double)(Runtime.getRuntime().totalMemory()/1024)/1024))- 
+	 *     ((double)((double)(Runtime.getRuntime().freeMemory()/1024)/1024));
+	 * 	    
+	 */
 		    // Print current classifier's name and accuracy in a complicated,
 			
 			System.out.println(j);
