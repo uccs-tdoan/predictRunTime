@@ -1,0 +1,270 @@
+---
+title: "Regression Models"
+output: pdf_document
+author: Tri Doan
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents.
+
+```{r,echo=FALSE}
+library(caret)
+library(e1071)
+library(ggplot2)
+setwd("C:/smallProject/predictRunTime/code")
+
+```
+
+In this code section, we create ModifiedTrainingPCA.csv from TrainPCA.csv where category 
+variable (Algorithm) will be converted into binary atribute (similar nominal to binary in weka)
+
+
+```{r, echo=FALSE}
+df <- read.csv("../TrainPCA.csv")
+simpleMod <- dummyVars(~., data=df,levelsOnly= TRUE)
+
+df <- predict(simpleMod, df)
+write.table(df,file="../ModifiedTrainingPCA.csv",sep=",",row.names=FALSE,col.names=TRUE)    
+```
+ In this code section, we plot density by algorithm of TrainPCAplot.csv which
+indicates skewly data for most attributes
+
+```{r, echo=FALSE}
+df <- read.csv("TrainPCAPlot.csv")
+library(reshape2)
+library(lattice)
+
+df <- df[,-c(1,2,3,5,25)]
+meltedData <- melt(df,id.vars="Algorithm")
+p<-densityplot(~value|variable,data = meltedData,scales = list(x = list(relation = "free"),y = list(relation = "free")),adjust = 1.25,pch = "|",xlab = "Predictor")
+
+skew <- apply(df,2,skewness)
+summary(skew)
+
+pdf("Densityplot.pdf", width=6, height=5)
+print(p)
+dev.off()
+```
+ assess the linearity of dataset, 
+ To display scatter plot with linear fit line
+ ggplot(df, aes(x=df$toCorr, y=df$CPUtime)) + geom_point(shape=1) + stat_smooth(method="lm",se=TRUE)
+
+
+```{r,echo=FALSE}
+ library(gridExtra)
+
+ pdf("nonlinearity.pdf", width=6, height=5)
+ p1 <- ggplot(data=df, aes(x=instan, y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess)
+ p2 <- ggplot(data=df, aes(x=FSize,y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess)
+ p3 <- ggplot(data=df, aes(x=LCoef01, y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess) +theme(axis.text.x=element_text(angle=90, size=10, vjust=0.5)) 
+ p4 <- ggplot(data=df, aes(x=nCEntropy, y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess)
+ p5 <- ggplot(data=df, aes(x=entroC, y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess)
+ p6 <- ggplot(data=df, aes(x=toCorr, y=CPUtime)) + geom_point(shape=1) + stat_smooth(method=loess)
+ p<- grid.arrange(p1,p2, p3, p4,p5,p6, nrow=2)
+ print(p)
+ dev.off()
+
+```
+The following code to assess the number of attributes to obtain minimum prediction 
+error. 
+Package leaps is used
+```{r, echo=FALSE}
+library(leaps)
+
+fit.full = regsubsets(CPUtime~.,data=df)
+fit.summary = summary(fit.full)
+
+plot(fit.summary$cp,xlab="Number of Variables",ylab="Cp",pch=16,main="Estimate of prediction error")
+points(8,fit.summary$cp[8],col="red")
+
+```
+Remaining code demonstrates solution of this paper.
+```{r,echo=FALSE}
+df <- read.csv("../TrainPCA.csv")
+```
+ convert nominal attribute into binary attributes
+ First at all, remove unused atributes, and convert file
+```{r,echo=FALSE}
+df <- df[,-c(1,22,23,25,27)]
+simpleMod <- dummyVars(~., data=df,levelsOnly= TRUE)
+df <- predict(simpleMod, df)
+write.table(df,file="../FinalData.csv",sep=",",row.names=FALSE,col.names=TRUE)    
+
+```
+ Reload data and perform Cox-Box transformation
+ Following codes illustrate how to implement Box Cox for all predictors and response
+ We recommend to try transformation for response only first
+```{r,echo=FALSE}
+df <- read.csv("../FinalData.csv")
+trans <- preProcess(dfe, method = c("BoxCox"))
+df <- predict(trans, df)
+
+```
+ The following codes implemented Box-Cox transformation for response only
+ We otain lambda = 0.2 
+```{r, echo=FALSE}
+ CPUTrans <- BoxCoxTrans(df$CPUtime)
+ CPUTrans
+ df$CPUtime <-  predict(CPUTrans,df$CPUtime)
+
+
+```
+ Create train, test sets 
+ 
+```{r.echo=FALSE}
+ set.seed(215)
+ TrainRow <- createDataPartition(df[, ncol(df)], p = 0.7, list= FALSE)
+
+ trainData <- df[TrainRow,]
+ ctrl <- trainControl(method = "repeatedcv", repeats = 5,number=10)
+
+ trainX <- df[TrainRow,1:ncol(df)-1]
+ trainY<-df[TrainRow,ncol(df)]
+ testX <- df[-TrainRow, 1:ncol(df)-1]
+ observed <- df[-TrainRow,ncol(df)]
+
+```
+ Built Principle Componenet Regression model
+ RMSE= 4.521382
+```{r,echo=FALSE}
+set.seed(215)
+runPCR <- train(x = trainX, y = trainY, method = "pcr", trControl = ctrl,tuneLenght=25)
+predPCR <- predict(runPCR, newdata = testX)
+
+RMSE(predPCR,observed)
+
+result <- cbind(observed,predPCR)
+
+rm(predPCR)
+```
+ Generate Partial Least Square (PLS) model
+ RMSE = 3.381704
+
+```{r,echo=FALSE}
+set.seed(215)
+runPLS <- train(x = trainX, y = trainY, method = "pls", preProcess=c("center","scale"),trControl = ctrl,tuneLenght=25)
+predPLS <- predict(runPLS, newdata = testX)
+
+RMSE(predPLS,observed)
+result <- cbind(result,predPLS)
+rm(predPLS)
+
+```
+ Generate Elastic Net model
+ RMSE  = 3.337861
+
+```{r, echo=FALSE}
+set.seed(215)  
+library(elasticnet)
+enetGrid <- expand.grid(lambda = c(0, .001, .01, .1, 1), fraction = seq(.05, 1, length = 20))
+runENet <-  train(x = trainX, y = trainY, method = "enet", preProcess=c("center","scale"),trControl = ctrl,
+                  tuneGrid=enetGrid) 
+enetModel <- enet(x = as.matrix(trainX), y = trainY, lambda = 0, normalize = TRUE)
+predEnet <- predict(enetModel, newx = as.matrix(testX), s = .1, mode = "fraction",    type = "fit")
+
+RMSE(predEnet$fit,observed)
+Elastic <- predEnet$fit
+
+result <- cbind(result,Elastic)
+rm(predENet)  
+rm(Elastic)
+```
+ generate RidgeRegression
+ RMSE = 3.225341
+
+```{r, echo=FALSE}
+set.seed(215)
+ridgeGrid <- data.frame(.lambda = seq( .1,4, length = 20))
+ridgeRegFit <- train(trainX,trainY, method ="ridge",tuneGrid = ridgeGrid, trControl=ctrl, preProc=c("center","scale"))
+ridgeRegFit
+
+ridgeModel <- enet(x = as.matrix(trainX), y = trainY,lambda=0.1)
+ridgePred <- predict(ridgeModel,newx=as.matrix(testX),s=1,mode="fraction",type="fit")
+
+RMSE(ridgePred$fit,observed)
+predRidge <- ridgePred$fit 
+result <- cbind(result,predRidge)
+rm(predRidge)
+rm(ridgePred)  
+
+```
+ generate LARS model
+ RMSE= 3.245815
+  
+ eg: lassoFit <- lars(as.matrix(trainX),trainY,type=c("lasso"))
+ lassoPred <- predict.lars(lassoFit,newx=as.matrix(testX),type="fit")
+
+ RMSE(lassoPred$fit,observed)
+ predLasso <- lassoPred$fit 
+  
+```{r, echo=FALSE}
+set.seed(215)
+library(lars)
+# compute MSEs for a range of coefficient penalties as a fraction of 
+# final L1 norm on the interval [0,1] using cross validation
+cv.res <- cv.lars(as.matrix(trainX),trainY,type="lasso",mode="fraction",plot=FALSE)
+# Choose optimal value one standarf deviation away from minimum MSE
+opt.frac <- min(cv.res$cv) + sd(cv.res$cv)
+opt.frac <-cs.res$index[which(cv.res$cv < opt.frac)[1]]
+# Compute LARS fit
+lasso.fit <- lars(as.matrix(trainX),trainY,type=c("lasso"))
+# Compute a fit
+lassoPred <- predict.lars(lasso.fit,newx=as.matrix(testX),type="fit",s=opt.frac))
+
+lassoFit <- lars(as.matrix(trainX),trainY,type=c("lasso"))
+lassoPred <- predict.lars(lassoFit,newx=as.matrix(testX),type="fit")
+
+RMSE(lassoPred$fit,observed)
+predLasso <- lassoPred$fit 
+result <- cbind(result,predLasso)
+rm(predLasso)
+rm(lassoPred)  
+
+```
+ generate Support Vector Regression (SVR) model
+ RMSE=  1.211707
+  
+```{r, echo=FALSE}
+set.seed(215)  
+library(kernlab)
+svmRModel <- train(x = trainX,trainY,method = "svmRadial",preProc = c("center", "scale"), tuneLength = 10,trControl = trainControl(method = "cv")) 
+#Tuning parameter 'sigma' was held constant at a value of 0.0108882
+#RMSE was used to select the optimal model using  the smallest value.
+#The final values used for the model were sigma = 0.0108882 and C = 16.
+svmRModel$finalModel
+#SV type: eps-svr  (regression) 
+#parameter : epsilon = 0.1  cost C = 8
+#svmFit <- ksvm(x = trainX, y = trainY,kernel ="rbfdot", kpar = "automatic",C = 8, epsilon = 0.1)
+
+
+predSVM <- predict(svmRModel, newdata = testX)
+RMSE(predSVM,observed)  # 1807.155 after Box Cox, RMSE : 1.393408 
+result <- cbind(result,predSVM)
+rm(predSVM)
+
+```
+ Generate MARS
+ RMSE = 0.779017
+
+```{r, echo= FALSE}
+set.seed(215)
+marsGrid <- expand.grid(.degree = 1:2, .nprune = 2:38)
+marsTuned <- train(trainX, trainY, method = "earth",tuneGrid = marsGrid,trControl = trainControl(method = "cv"))
+predMars <- predict(marsTuned,testX)
+RMSE(predMars,observed)
+result <- cbind(result,predMars)
+rm(predMars) 
+
+```
+ generate KNN regression
+ RMSE = 4.501433   
+  
+```{r , echo = FALSE}
+set.seed(215)
+knnTuned <- train(trainX, trainY,method = "knn",preProc = c("center", "scale"),
+                  tuneGrid = data.frame(.k = 1:20),trControl = trainControl(method = "cv"))
+predKNN <- predict(knnTuned,testX)
+RMSE(predKNN, observed)
+result <- cbind(result,predKNN)
+rm(predKNN)
+# alternatively, postResample(pred = knnPred, obs = testY)
+write.table(result,file="../preditedTimeModels.csv",sep=",",row.names=FALSE,col.names=TRUE)    
