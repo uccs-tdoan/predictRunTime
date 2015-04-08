@@ -1,0 +1,56 @@
+---
+title: "compress_error"
+author: "tri doan"
+date: "Tuesday, April 07, 2015"
+output: graph of error comparision
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(reshape2)
+library(ggplot2)
+```
+ Load data and melt
+
+
+```{r, echo=FALSE}
+  setwd("c:/predictRuntime/compress_error")
+  df1 <- read.csv("../compress_error/ErrorFA.csv",stringsAsFactors=F, header=T)
+  df1$method <- "FA"  
+
+  df2 <- read.csv("../compress_error/ErrorFICA.csv",stringsAsFactors=F, header=T)
+  df2$method <- "FICA"
+
+  df3 <- read.csv("../compress_error/ErrorKernelLinear.csv",stringsAsFactors=F, header=T)
+  df3$method <- "K.Linear"  
+  
+  df4 <- read.csv("../compress_error/ErrorKernelRBF.csv",stringsAsFactors=F, header=T)
+  df4$method <- "K. RBF"
+
+  df5 <- read.csv("../compress_error/ErrorPPCA.csv",stringsAsFactors=F, header=T)
+  df5$method <- "P. PCA"
+
+  df6 <- read.csv("../compress_error/ErrorRPCA.csv",stringsAsFactors=F, header=T)
+  df6$method <- "R. PCA"
+
+  df7 <- read.csv("../compress_error/ErrorTSVD.csv",stringsAsFactors=F, header=T)
+  df7$method <- "T. SVD"
+  
+  df <- rbind(df1,df2,df3,df4,df5,df6,df7)
+  colnames(df)<- c("dataset","2Features","3Features","4Features","5Features","6Features" ,"7Features","method")
+  
+  write.table(df,file="../Errors_Compare.csv",sep=",",row.names=FALSE,col.names=TRUE)
+  dat <- melt(df, id.var=c("dataset","method"))
+  
+```
+
+ plot error vs number of features
+
+```{r, echo=FALSE}
+pdf("../errorCompression.pdf", width=6, height=5)
+ggplot(dat,aes(variable,value),color=dataset,na.rm=TRUE) + geom_point(aes(color=variable))+ facet_grid(method~dataset) + theme( axis.text.x = element_blank(), legend.position = "bottom",legend.title=element_blank()) + xlab("Datasets") +ylab("Error rates") + scale_y_continuous(breaks=c(0.2,0.5,0.8)) 
+
+dev.off()
