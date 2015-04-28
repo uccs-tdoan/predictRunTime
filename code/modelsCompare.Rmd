@@ -1,0 +1,35 @@
+---
+title: "modelsCompare.Rmd"
+author: "tri doan"
+date: "Tuesday, April 07, 2015"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(ggplot2)
+library(reshape2)
+```
+
+Load data
+
+```{r, echo=FALSE}
+ df <- read.csv("predictedTimeModels.csv")
+ dat <- melt(df,id.var="observed")
+ dat
+ 
+```
+
+generate plots 
+```{r, echo = FALSE}
+ pdf("../ModelsCompare.pdf", width=6, height=5)
+ ggplot(data = dat,aes(x = observed, y = value)) + 
+  geom_point(colour = "blue") + 
+  geom_abline(intercept = 0, slope = 1, colour = "red") +
+  facet_wrap(~ variable,ncol = 2) + labs(y="Predicted ") +
+  coord_cartesian(xlim = c(0,70),ylim = c(0,70)) +
+  ggtitle("Predicted vs. Actual values by models")
+dev.off()
